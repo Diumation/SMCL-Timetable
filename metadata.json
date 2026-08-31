@@ -1,0 +1,6 @@
+{
+  "name": "SMCL 연구실 대학원생 Coursework 종합 시간표",
+  "description": "24명(박사 13명, 석사 11명) 대학원생의 수강신청 교과목을 1페이지 내에 시각화하고, 수강정정 기간 실시간 반영 및 학생명 표기를 지원하는 종합 시간표 시스템",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

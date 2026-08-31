@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { 
   Building2, 
   Users, 
-  Clock, 
-  CheckCircle, 
+  Calendar, 
   BookOpen, 
-  Sparkles,
-  CalendarCheck
+  CheckCircle2, 
+  Search,
+  Filter,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 import { Student } from '../types';
-import { getDegreeBadgeClass } from '../utils/colorUtils';
-import { DAYS, END_HOUR, getStudentsInClass, START_HOUR, TOTAL_HOURS } from '../utils/timeUtils';
+import { DAYS, START_HOUR, TOTAL_HOURS, getStudentsInClass } from '../utils/timeUtils';
 
 interface LabMatrixViewProps {
   students: Student[];
@@ -21,252 +22,259 @@ export const LabMatrixView: React.FC<LabMatrixViewProps> = ({
   students,
   onSelectStudent,
 }) => {
-  const [selectedCell, setSelectedCell] = useState<{
-    day: '월' | '화' | '수' | '목' | '금';
-    hour: number;
-  }>({
-    day: '월',
-    hour: 10,
+  const [selectedDay, setSelectedDay] = useState<'월' | '화' | '수' | '목' | '금'>('월');
+  const [selectedHour, setSelectedHour] = useState<number>(14);
+  const [degreeFilter, setDegreeFilter] = useState<'ALL' | 'PhD' | 'Master'>('ALL');
+
+  const filteredStudents = students.filter((s) => {
+    if (degreeFilter === 'PhD') return s.degree === 'PhD';
+    if (degreeFilter === 'Master') return s.degree === 'Master';
+    return true;
   });
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
-  // Compute stats for selected cell
-  const currentSlotData = getStudentsInClass(students, selectedCell.day, selectedCell.hour);
-
-  // Find best meeting times (where fewest students have classes)
-  const meetingSlots: { day: '월' | '화' | '수' | '목' | '금'; hour: number; inClassCount: number }[] = [];
-  DAYS.forEach((day) => {
-    hours.forEach((hour) => {
-      const data = getStudentsInClass(students, day, hour);
-      meetingSlots.push({ day, hour, inClassCount: data.inClass.length });
-    });
-  });
-
-  // Sort by fewest in class
-  meetingSlots.sort((a, b) => a.inClassCount - b.inClassCount);
-  const bestSlots = meetingSlots.slice(0, 5);
+  // Get in-class and in-lab students for the selected slot
+  const { inClass, inLab } = getStudentsInClass(filteredStudents, selectedDay, selectedHour);
 
   return (
-    <div className="space-y-6">
-      {/* Intro Banner (Editorial Masthead) */}
-      <div className="bg-[#1A1A1A] text-white rounded-xs p-5 border-2 border-[#1A1A1A] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1 text-[#E14C27] text-xs font-black tracking-wider">
-            <Building2 className="w-4 h-4" />
-            SMCL 연구실 재실 및 수업 상황
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-            연구실 세미나 및 전체 미팅 최적 시간 검색
-          </h2>
-          <p className="text-xs font-bold text-white/70 mt-1">
-            원하는 시간대 셀을 클릭하면 해당 시간에 수업 중인 연구원과 랩실 재실 연구원 명단을 즉시 확인합니다.
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Main Interactive Grid Matrix */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left Column: Hourly Matrix Heatmap (8 Cols) */}
+        <div className="lg:col-span-7 bg-[#F9F8F6] border-2 border-[#1A1A1A] p-5 rounded-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b-2 border-[#1A1A1A]">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[#1A1A1A]" />
+              <h3 className="text-sm font-black text-[#1A1A1A] tracking-wider">
+                주간 시간대별 재실 인원 매트릭스
+              </h3>
+            </div>
 
-        {/* Top recommended slots badge */}
-        <div className="bg-white/10 border border-white/20 p-3 rounded-xs">
-          <div className="text-[10px] font-black tracking-wider text-white/80 flex items-center gap-1 mb-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#E14C27]" />
-            추천 세미나 시간대
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {bestSlots.slice(0, 3).map((slot, idx) => (
+            {/* Degree Filter Chips */}
+            <div className="flex items-center bg-[#F1F0ED] border border-[#1A1A1A] p-0.5 rounded-xs text-xs">
               <button
-                key={idx}
-                onClick={() => setSelectedCell({ day: slot.day, hour: slot.hour })}
-                className="px-2 py-1 rounded-xs bg-white text-[#1A1A1A] hover:bg-[#F1F0ED] text-[10px] font-black tracking-wider transition-colors cursor-pointer"
+                onClick={() => setDegreeFilter('ALL')}
+                className={`px-2.5 py-0.5 font-black transition-colors cursor-pointer rounded-xs ${
+                  degreeFilter === 'ALL' ? 'bg-[#1A1A1A] text-white shadow-xs' : 'text-[#1A1A1A] hover:bg-white/50'
+                }`}
               >
-                {slot.day} {slot.hour}:00 ({students.length - slot.inClassCount}명 참석 가능)
+                전체
+              </button>
+              <button
+                onClick={() => setDegreeFilter('PhD')}
+                className={`px-2.5 py-0.5 font-black transition-colors cursor-pointer rounded-xs flex items-center gap-1.5 ${
+                  degreeFilter === 'PhD' ? 'bg-[#1A1A1A] text-white shadow-xs' : 'text-[#1A1A1A] hover:bg-white/50'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${degreeFilter === 'PhD' ? 'bg-white' : 'bg-[#1A1A1A]'}`}></span>
+                Ph.D.
+              </button>
+              <button
+                onClick={() => setDegreeFilter('Master')}
+                className={`px-2.5 py-0.5 font-black transition-colors cursor-pointer rounded-xs flex items-center gap-1.5 ${
+                  degreeFilter === 'Master' ? 'bg-[#1B6CA8] text-white shadow-xs' : 'text-[#1A1A1A] hover:bg-white/50'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${degreeFilter === 'Master' ? 'bg-white' : 'bg-[#1B6CA8]'}`}></span>
+                M.S.
+              </button>
+            </div>
+          </div>
+
+          {/* Day Selection Bar */}
+          <div className="grid grid-cols-5 gap-1">
+            {DAYS.map((day) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`py-2 text-center text-xs font-black border transition-all cursor-pointer rounded-xs ${
+                  selectedDay === day
+                    ? 'bg-[#1A1A1A] text-white border-[#1A1A1A] shadow-xs'
+                    : 'bg-white text-[#1A1A1A] border-[#1A1A1A]/30 hover:border-[#1A1A1A]'
+                }`}
+              >
+                {day}요일
               </button>
             ))}
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Heatmap Grid (7 Cols) */}
-        <div className="lg:col-span-7 bg-white rounded-xs border-2 border-[#1A1A1A] p-5 shadow-none">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b-2 border-[#1A1A1A]">
-            <h3 className="text-xs font-black tracking-wider text-[#1A1A1A] flex items-center gap-2">
-              <CalendarCheck className="w-4 h-4 text-[#E14C27]" />
-              주간 요일 및 시간대별 수업 인원 현황
-            </h3>
-            <div className="flex items-center gap-3 text-[10px] font-bold text-[#1A1A1A]/70">
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 bg-[#2ECC71]/20 border border-[#2ECC71]"></span> 0명 (전원 랩)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 bg-[#F39C12]/20 border border-[#F39C12]"></span> 1~3명 수업
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 bg-[#E14C27]/20 border border-[#E14C27]"></span> 4명 이상 수업
-              </span>
-            </div>
-          </div>
+          {/* Hourly Slots Table for the Selected Day */}
+          <div className="space-y-1.5 pt-2">
+            {hours.map((hour) => {
+              const { inClass: classList, inLab: labList } = getStudentsInClass(filteredStudents, selectedDay, hour);
+              const isSelected = selectedHour === hour;
+              const total = filteredStudents.length;
+              const labPercent = total > 0 ? (labList.length / total) * 100 : 0;
 
-          <div className="grid grid-cols-6 border-2 border-[#1A1A1A] rounded-xs overflow-hidden text-center">
-            {/* Header */}
-            <div className="py-2.5 bg-[#1A1A1A] border-b-2 border-r border-[#1A1A1A] text-white text-[10px] font-black tracking-wider">
-              시간
-            </div>
-            {DAYS.map((day) => (
-              <div
-                key={day}
-                className="py-2.5 bg-[#1A1A1A] border-b-2 border-r last:border-r-0 border-white/20 text-white text-xs font-black tracking-wider"
-              >
-                {day}요일
-              </div>
-            ))}
+              return (
+                <div
+                  key={hour}
+                  onClick={() => setSelectedHour(hour)}
+                  className={`p-2.5 border-2 rounded-xs transition-all cursor-pointer flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-white border-[#1B6CA8] shadow-sm ring-1 ring-[#1B6CA8]'
+                      : 'bg-white border-[#1A1A1A]/20 hover:border-[#1A1A1A] hover:bg-white/80'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`w-14 text-center font-black text-xs px-1.5 py-0.5 rounded-xs border ${
+                      isSelected 
+                        ? 'bg-[#1B6CA8] text-white border-[#145380]' 
+                        : 'bg-[#F1F0ED] text-[#1A1A1A] border-[#1A1A1A]/30'
+                    }`}>
+                      {hour}:00
+                    </span>
 
-            {/* Matrix Cells */}
-            {hours.map((hour) => (
-              <React.Fragment key={hour}>
-                {/* Hour Header */}
-                <div className="py-3 px-1 border-b border-r border-[#1A1A1A]/20 bg-[#F1F0ED] text-[11px] font-black text-[#1A1A1A] flex items-center justify-center">
-                  {hour}:00
-                </div>
-
-                {DAYS.map((day) => {
-                  const data = getStudentsInClass(students, day, hour);
-                  const isSelected = selectedCell.day === day && selectedCell.hour === hour;
-                  const inClassCount = data.inClass.length;
-
-                  let cellBg = 'bg-[#2ECC71]/10 text-[#1A1A1A]';
-                  if (inClassCount >= 4) {
-                    cellBg = 'bg-[#E14C27]/15 text-[#1A1A1A] font-black';
-                  } else if (inClassCount >= 1) {
-                    cellBg = 'bg-[#F39C12]/15 text-[#1A1A1A] font-bold';
-                  }
-
-                  return (
-                    <button
-                      key={`${day}-${hour}`}
-                      onClick={() => setSelectedCell({ day, hour })}
-                      className={`py-3 px-1 border-b border-r last:border-r-0 border-[#1A1A1A]/20 transition-all cursor-pointer flex flex-col items-center justify-center ${cellBg} ${
-                        isSelected ? 'ring-2 ring-[#1A1A1A] z-10 bg-[#1A1A1A]! text-white!' : 'hover:opacity-80'
-                      }`}
-                    >
-                      <span className="text-xs font-black">
-                        {inClassCount > 0 ? `${inClassCount}명 수업` : '전원 랩실'}
-                      </span>
-                      <span className={`text-[9px] font-bold ${isSelected ? 'text-white/70' : 'text-[#1A1A1A]/60'}`}>
-                        {students.length - inClassCount}명 재실
-                      </span>
-                    </button>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        {/* Selected Slot Detailed Panel (5 Cols) */}
-        <div className="lg:col-span-5 bg-white rounded-xs border-2 border-[#1A1A1A] p-5 shadow-none flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b-2 border-[#1A1A1A]">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#E14C27]" />
-                <h3 className="text-xs font-black tracking-wider text-[#1A1A1A]">
-                  {selectedCell.day}요일 {selectedCell.hour}:00 ~ {selectedCell.hour + 1}:00 현황
-                </h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-xs text-[10px] font-black bg-[#1A1A1A] text-white tracking-wider">
-                총원 {students.length}명
-              </span>
-            </div>
-
-            {/* In-Class Students */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-xs font-black text-[#1A1A1A] mb-2 tracking-wider">
-                <span className="flex items-center gap-1.5 text-[#E14C27]">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  수업 중 연구원 ({currentSlotData.inClass.length}명)
-                </span>
-                <span className="text-[10px] font-bold text-[#1A1A1A]/50">강의실 이동</span>
-              </div>
-
-              {currentSlotData.inClass.length === 0 ? (
-                <div className="p-4 rounded-xs bg-[#2ECC71]/15 border border-[#2ECC71] text-[#1A1A1A] text-xs font-bold text-center">
-                  🎉 이 시간대에 수업 중인 연구원이 없습니다! 24명 전원 세미나 참석 가능합니다.
-                </div>
-              ) : (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {currentSlotData.inClass.map(({ student, courseName, time }) => {
-                    const isPhD = student.degree === 'PhD';
-                    return (
-                      <div
-                        key={student.id}
-                        onClick={() => onSelectStudent(student.id)}
-                        className="p-2 rounded-xs border border-[#1A1A1A]/20 bg-[#F9F8F6] hover:bg-[#F1F0ED] hover:border-[#1A1A1A] flex items-center justify-between cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded-xs font-black ${
-                            isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#E14C27] text-white'
-                          }`}>
-                            {isPhD ? 'Ph.D' : 'MS.'}
-                          </span>
-                          <span className="text-xs font-black text-[#1A1A1A]">{student.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs font-black text-[#E14C27] break-keep">{courseName}</div>
-                          <div className="text-[9px] font-bold text-[#1A1A1A]/50">{time}</div>
-                        </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-[#1A1A1A]">
+                          연구실 재실: {labList.length}명
+                        </span>
+                        <span className="text-[11px] font-bold text-[#1A1A1A]/60">
+                          (수업 중: {classList.length}명)
+                        </span>
                       </div>
-                    );
-                  })}
+                      
+                      {/* Mini Bar Gauge */}
+                      <div className="w-36 sm:w-48 h-1.5 bg-[#F1F0ED] rounded-full overflow-hidden mt-1 border border-[#1A1A1A]/10">
+                        <div 
+                          className="h-full bg-[#1A1A1A]" 
+                          style={{ width: `${labPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {classList.length > 0 && (
+                      <div className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-[#1B6CA8] bg-[#1B6CA8]/10 px-2 py-0.5 rounded-xs border border-[#1B6CA8]/30 max-w-[180px] truncate">
+                        <BookOpen className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{classList.map(c => c.courseName).slice(0, 2).join(', ')}</span>
+                      </div>
+                    )}
+                    <ArrowRight className={`w-4 h-4 ${isSelected ? 'text-[#1B6CA8]' : 'text-[#1A1A1A]/30'}`} />
+                  </div>
                 </div>
-              )}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Column: Detailed Drilldown for Selected Day & Hour (5 Cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          
+          {/* Active Slot Status Box */}
+          <div className="bg-[#1A1A1A] text-white p-4 border-2 border-[#1A1A1A] rounded-xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold tracking-wider text-[#1B6CA8] uppercase">
+                선택된 시간대 상세 조회
+              </span>
+              <h4 className="text-xl font-black tracking-tight">
+                {selectedDay}요일 {selectedHour}:00 ~ {selectedHour + 1}:00
+              </h4>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-[#1B6CA8]">{inLab.length}</span>
+              <span className="text-xs font-bold text-white/60"> / {filteredStudents.length}명 재실</span>
+            </div>
+          </div>
+
+          {/* In Lab List Card */}
+          <div className="bg-white border-2 border-[#1A1A1A] p-4 rounded-xs shadow-none space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1A1A1A]/20">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#2ECC71]" />
+                <h4 className="text-xs font-black text-[#1A1A1A] tracking-wider">
+                  연구실 재실 가능 연구원 ({inLab.length}명)
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-[#1A1A1A]/60">클릭 시 학생 시간표 이동</span>
             </div>
 
-            {/* Available in Lab Students */}
-            <div className="mt-5">
-              <div className="flex items-center justify-between text-xs font-black text-[#1A1A1A] mb-2 tracking-wider">
-                <span className="flex items-center gap-1.5 text-[#2ECC71]">
-                  <CheckCircle className="w-3.5 h-3.5 text-[#2ECC71]" />
-                  연구실 재실 연구원 ({currentSlotData.inLab.length}명)
-                </span>
-                <span className="text-[10px] font-bold text-[#1A1A1A]/50">연구실 근무</span>
-              </div>
-
-              <div className="flex flex-wrap gap-1 max-h-44 overflow-y-auto p-2 bg-[#F1F0ED] rounded-xs border border-[#1A1A1A]/20">
-                {currentSlotData.inLab.map((s) => {
-                  const isPhD = s.degree === 'PhD';
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => onSelectStudent(s.id)}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[10px] font-black transition-transform hover:scale-105 cursor-pointer ${
-                        isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#E14C27] text-white'
-                      }`}
-                    >
-                      <span className="text-[8px] opacity-75 font-extrabold">
-                        {isPhD ? 'Ph.D' : 'MS.'}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
+              {inLab.map((student) => {
+                const isPhD = student.degree === 'PhD';
+                return (
+                  <button
+                    key={student.id}
+                    onClick={() => onSelectStudent(student.id)}
+                    className="p-2 text-left bg-[#F9F8F6] hover:bg-[#F1F0ED] border border-[#1A1A1A]/30 rounded-xs transition-colors cursor-pointer group flex items-center justify-between"
+                  >
+                    <div>
+                      <span className={`text-[9px] font-black px-1 py-0.2 rounded-2xs mr-1 ${
+                        isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#1B6CA8] text-white'
+                      }`}>
+                        {isPhD ? 'Ph.D.' : 'M.S.'}
                       </span>
-                      <span>{s.name}</span>
-                    </button>
+                      <span className="text-xs font-black text-[#1A1A1A] group-hover:text-[#1B6CA8] inline-flex items-center gap-1">
+                        <span>{student.name}</span>
+                        {(student.name === '이윤일' || student.orderNumber === 2) && <span className="text-[10px]" title="랩장">👑</span>}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* In Class (Coursework) List Card */}
+          <div className="bg-white border-2 border-[#1A1A1A] p-4 rounded-xs shadow-none space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1A1A1A]/20">
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-[#1B6CA8]" />
+                <h4 className="text-xs font-black text-[#1A1A1A] tracking-wider">
+                  현재 수업 진행 중 연구원 ({inClass.length}명)
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-[#1B6CA8]">Coursework</span>
+            </div>
+
+            {inClass.length === 0 ? (
+              <p className="text-xs font-bold text-[#1A1A1A]/50 py-4 text-center">
+                해당 시간대에 진행 중인 수업이 없습니다. (전원 연구실 재실)
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {inClass.map(({ student, courseName, time }) => {
+                  const isPhD = student.degree === 'PhD';
+                  return (
+                    <div
+                      key={student.id}
+                      onClick={() => onSelectStudent(student.id)}
+                      className="p-2.5 bg-[#F9F8F6] border border-[#1A1A1A]/30 rounded-xs hover:border-[#1A1A1A] transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-2xs ${
+                          isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#1B6CA8] text-white'
+                        }`}>
+                          {isPhD ? 'Ph.D.' : 'M.S.'}
+                        </span>
+                        <span className="text-xs font-black text-[#1A1A1A] inline-flex items-center gap-1">
+                          <span>{student.name}</span>
+                          {(student.name === '이윤일' || student.orderNumber === 2) && <span className="text-[10px]" title="랩장">👑</span>}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-xs font-black text-[#1B6CA8] leading-tight">
+                          {courseName}
+                        </p>
+                        <p className="text-[10px] font-bold text-[#1A1A1A]/60">
+                          {time}
+                        </p>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="pt-4 border-t-2 border-[#1A1A1A] text-xs font-bold text-[#1A1A1A] flex items-center justify-between">
-            <span className="text-[10px] tracking-wider text-[#1A1A1A]/60">세미나 및 미팅 적합도:</span>
-            <span className={`font-black tracking-wider ${
-              currentSlotData.inClass.length <= 2 ? 'text-[#2ECC71]' : 'text-[#E14C27]'
-            }`}>
-              {currentSlotData.inClass.length === 0
-                ? '★ 최적 (100% 전원 참석 가능)'
-                : currentSlotData.inClass.length <= 2
-                ? '○ 추천 (대다수 참석 가능)'
-                : '△ 주의 (다수 연구원 수업 중)'}
-            </span>
-          </div>
         </div>
+
       </div>
     </div>
   );
 };
-

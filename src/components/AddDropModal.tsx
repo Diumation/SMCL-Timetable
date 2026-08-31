@@ -43,7 +43,6 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
   const [professor, setProfessor] = useState('이동헌');
   const [credits, setCredits] = useState<number | string>(3);
   const [timeString, setTimeString] = useState('월/수 10:30 - 12:00');
-  const [note, setNote] = useState('');
   const [isResearch, setIsResearch] = useState(false);
 
   // Preset known courses in the lab for one-click selection
@@ -160,14 +159,6 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
       timeString: '월 13:00 - 15:00',
     },
     {
-      courseCode: 'HSS.40021',
-      courseName: '체력육성',
-      department: '디지털인문사회과학부',
-      professor: '하희문',
-      credits: 2,
-      timeString: '금 15:00 - 17:00',
-    },
-    {
       courseCode: 'CC.50001',
       courseName: '리더십강좌<석사 리더십 강좌(A)>',
       department: '공통필수',
@@ -201,7 +192,6 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
       professor: professor.trim() || '담당교수',
       credits: Number(credits) || 3,
       timeString: isResearch ? '-' : timeString.trim(),
-      note: note.trim(),
       isResearch: isResearch || courseName.includes('논문연구'),
       isSeminar: courseName.includes('세미나'),
     };
@@ -217,9 +207,6 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
     });
 
     onUpdateStudents(updated);
-
-    // Reset some fields
-    setNote('');
   };
 
   const handleDeleteCourse = (courseId: string) => {
@@ -287,9 +274,9 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
                   >
                     <span>{s.name}</span>
                     <span className={`text-[8px] px-1 py-0.2 rounded-xs ${
-                      isSelected ? 'bg-white text-[#1A1A1A]' : isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#E14C27] text-white'
+                      isSelected ? 'bg-white text-[#1A1A1A]' : isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#2563EB] text-white'
                     }`}>
-                      {isPhD ? 'Ph.D' : 'MS.'}
+                      {isPhD ? 'Ph.D.' : 'M.S.'}
                     </span>
                   </button>
                 );
@@ -302,10 +289,10 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
             <div className="p-3.5 bg-white rounded-xs border-2 border-[#1A1A1A]">
               <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-[#1A1A1A]/20">
                 <span className="text-xs font-black tracking-wider text-[#1A1A1A] flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-[#E14C27]" />
-                  {currentStudent.name} 연구원 ({currentStudent.degree === 'PhD' ? 'Ph.D' : 'MS.'}) 현재 수강 과목 ({currentStudent.courses.length}개)
+                  <User className="w-3.5 h-3.5 text-[#2563EB]" />
+                  {currentStudent.name} 연구원 ({currentStudent.degree === 'PhD' ? 'Ph.D.' : 'M.S.'}) 현재 수강 과목 ({currentStudent.courses.length}개)
                 </span>
-                <span className="text-xs font-bold text-[#E14C27]">
+                <span className="text-xs font-bold text-[#2563EB]">
                   총 {currentStudent.courses.reduce((acc, c) => acc + Number(c.credits || 0), 0)}학점 이수 중
                 </span>
               </div>
@@ -328,7 +315,7 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteCourse(c.id)}
-                      className="p-1 text-[#1A1A1A]/40 hover:text-[#E14C27] hover:bg-[#E14C27]/10 rounded-xs transition-colors cursor-pointer"
+                      className="p-1 text-[#1A1A1A]/40 hover:text-red-600 hover:bg-red-50 rounded-xs transition-colors cursor-pointer"
                       title="과목 삭제"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -343,7 +330,7 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
           <form onSubmit={handleAddCourse} className="space-y-4 border-t-2 border-[#1A1A1A] pt-4">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black tracking-wider text-[#1A1A1A] flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-[#E14C27]" />
+                <Plus className="w-4 h-4 text-[#2563EB]" />
                 2. 신규 과목 등록
               </label>
               <span className="text-[10px] font-bold text-[#1A1A1A]/60">아래 빈출 과목 템플릿 클릭 시 자동 입력</span>
@@ -442,7 +429,7 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4 pt-1">
               <label className="flex items-center gap-2 text-xs font-black text-[#1A1A1A] cursor-pointer">
                 <input
                   type="checkbox"
@@ -453,23 +440,11 @@ export const AddDropModal: React.FC<AddDropModalProps> = ({
                 논문연구 (강의 시간 없음)
               </label>
 
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="비고 (선택 사항: 예: 전공 학점 이수 완료 등)"
-                  className="w-full px-3 py-1.5 bg-white border border-[#1A1A1A] rounded-xs text-xs font-bold text-[#1A1A1A] focus:outline-hidden focus:ring-1 focus:ring-[#1A1A1A]"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 className="px-4 py-2.5 bg-[#1A1A1A] hover:bg-black text-white text-xs font-black tracking-wider rounded-xs shadow-none transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                <Check className="w-4 h-4 text-[#E14C27]" />
+                <Check className="w-4 h-4 text-[#1B6CA8]" />
                 {currentStudent?.name} 시간표에 즉시 반영
               </button>
             </div>

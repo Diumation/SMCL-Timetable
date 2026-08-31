@@ -16,7 +16,6 @@ export interface StudentCourse {
   professor: string;
   credits: number | string;
   timeString: string; // e.g. "월/수 10:30 - 12:00", "월 13:00 - 15:00", "-"
-  note?: string;
   isResearch?: boolean; // 논문연구 여부
   isSeminar?: boolean;  // 세미나 여부
 }
@@ -43,7 +42,6 @@ export interface TimetableBlockItem {
     id: string;
     name: string;
     degree: DegreeType;
-    note?: string;
   }[];
   category: CourseCategory;
 }

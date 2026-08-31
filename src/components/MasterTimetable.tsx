@@ -2,15 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { 
   Clock, 
   User, 
-  Sparkles, 
   Info,
   BookOpen,
   Users,
   Search,
-  Filter
+  Filter,
+  Layers
 } from 'lucide-react';
-import { FilterDegree, Student, TimetableBlockItem } from '../types';
-import { CATEGORY_COLORS } from '../utils/colorUtils';
+import { FilterDegree, Student, TimetableBlockItem, CourseCategory } from '../types';
+import { getCourseColorTheme } from '../utils/colorUtils';
 import { buildTimetableBlocks, layoutDayBlocks, DAYS, START_HOUR, TOTAL_HOURS, PositionedBlockItem } from '../utils/timeUtils';
 
 interface MasterTimetableProps {
@@ -32,7 +32,6 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
 }) => {
   const [hoveredCourseId, setHoveredCourseId] = useState<string | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<TimetableBlockItem | null>(null);
-  const [duplicateFilter, setDuplicateFilter] = useState<string | null>(null);
 
   // Filter students based on the active filterDegree (Ph.D vs MS. vs ALL)
   const filteredStudents = useMemo(() => {
@@ -43,22 +42,22 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
   // Generate all timetable blocks based on filtered students
   const allBlocks = useMemo(() => buildTimetableBlocks(filteredStudents), [filteredStudents]);
 
-  // Find courses that share the exact same course name but have different time slots
-  const multiSectionCourses = useMemo(() => {
-    const nameTimeMap = new Map<string, Set<string>>();
-    allBlocks.forEach((b) => {
-      const times = nameTimeMap.get(b.courseName) || new Set<string>();
-      times.add(b.timeString);
-      nameTimeMap.set(b.courseName, times);
-    });
-
-    const multi = new Map<string, string[]>();
-    nameTimeMap.forEach((times, name) => {
-      if (times.size > 1) {
-        multi.set(name, Array.from(times));
+  // Unique courses for color legend
+  const uniqueCourses = useMemo(() => {
+    const map = new Map<string, { courseName: string; courseCode: string; category: CourseCategory; professor: string; timeString: string; totalStudents: number }>();
+    for (const b of allBlocks) {
+      if (!map.has(b.courseName)) {
+        map.set(b.courseName, {
+          courseName: b.courseName,
+          courseCode: b.courseCode,
+          category: b.category,
+          professor: b.professor,
+          timeString: b.timeString,
+          totalStudents: b.students.length,
+        });
       }
-    });
-    return multi;
+    }
+    return Array.from(map.values()).sort((a, b) => a.courseName.localeCompare(b.courseName));
   }, [allBlocks]);
 
   // Hours array [9, 10, 11, 12, 13, 14, 15, 16, 17]
@@ -73,7 +72,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Filter Bar: Interactive Standardized Degree Legend Buttons & Section filter */}
+      {/* Top Filter Bar: Interactive Standardized Degree Legend Buttons */}
       <div className="bg-[#F1F0ED] p-3 border-2 border-[#1A1A1A] rounded-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-black text-[#1A1A1A] tracking-wider flex items-center gap-1.5">
@@ -95,56 +94,79 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
               onClick={() => onFilterDegreeChange && onFilterDegreeChange(filterDegree === 'PhD' ? 'ALL' : 'PhD')}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-xs border cursor-pointer transition-all ${
                 filterDegree === 'PhD'
-                  ? 'bg-[#1A1A1A] text-white border-[#1A1A1A] ring-2 ring-[#E14C27]'
-                  : 'bg-white text-[#1A1A1A]/60 border-[#1A1A1A]/30 hover:text-[#1A1A1A]'
+                  ? 'bg-[#1A1A1A] text-white border-[#1A1A1A] ring-2 ring-[#1B6CA8]'
+                  : 'bg-white text-[#1A1A1A]/80 border-[#1A1A1A]/30 hover:text-[#1A1A1A] hover:border-[#1A1A1A]'
               }`}
-              title="클릭 시 Ph.D(박사과정) 학생 및 수업만 보기"
+              title="클릭 시 Ph.D.(박사과정) 학생 및 수업만 보기"
             >
-              <span className="w-1.5 h-1.5 bg-[#E14C27] rounded-full"></span>
-              Ph.D ({students.filter((s) => s.degree === 'PhD').length}명)
+              <span className={`w-2 h-2 rounded-full shrink-0 ${filterDegree === 'PhD' ? 'bg-white' : 'bg-[#1A1A1A]'}`}></span>
+              Ph.D. ({students.filter((s) => s.degree === 'PhD').length}명)
             </button>
             <button
               onClick={() => onFilterDegreeChange && onFilterDegreeChange(filterDegree === 'Master' ? 'ALL' : 'Master')}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-xs border cursor-pointer transition-all ${
                 filterDegree === 'Master'
-                  ? 'bg-[#E14C27] text-white border-[#c93f1d] ring-2 ring-[#1A1A1A]'
-                  : 'bg-white text-[#1A1A1A]/60 border-[#1A1A1A]/30 hover:text-[#1A1A1A]'
+                  ? 'bg-[#1B6CA8] text-white border-[#145380] ring-2 ring-[#1A1A1A]'
+                  : 'bg-white text-[#1A1A1A]/80 border-[#1A1A1A]/30 hover:text-[#1A1A1A] hover:border-[#1A1A1A]'
               }`}
-              title="클릭 시 MS.(석사과정) 학생 및 수업만 보기"
+              title="클릭 시 M.S.(석사과정) 학생 및 수업만 보기"
             >
-              <span className="w-1.5 h-1.5 bg-[#E14C27] rounded-full"></span>
-              MS. ({students.filter((s) => s.degree === 'Master').length}명)
+              <span className={`w-2 h-2 rounded-full shrink-0 ${filterDegree === 'Master' ? 'bg-white' : 'bg-[#1B6CA8]'}`}></span>
+              M.S. ({students.filter((s) => s.degree === 'Master').length}명)
             </button>
           </div>
         </div>
 
-        {/* 동일 교과목 다중 분반/시간대 알림 바 (존재할 경우에만 표시) */}
-        {multiSectionCourses.size > 0 && (
-          <div className="flex flex-wrap items-center gap-2 text-[10px]">
-            <span className="font-bold text-[#1A1A1A]">동일 과목명 분반:</span>
-            {Array.from(multiSectionCourses.entries()).map(([courseName, times]) => (
-              <button
-                key={courseName}
-                onClick={() => setDuplicateFilter(duplicateFilter === courseName ? null : courseName)}
-                className={`px-2 py-0.5 rounded-xs font-black tracking-wide transition-colors cursor-pointer border ${
-                  duplicateFilter === courseName 
-                    ? 'bg-[#E14C27] text-white border-[#E14C27]' 
-                    : 'bg-white text-[#1A1A1A] border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white'
-                }`}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-[#1A1A1A]/70">
+            * 블록 내 <span className="font-black text-[#1A1A1A]">검정(Ph.D.)</span> / <span className="font-black text-[#1B6CA8]">파랑(M.S.)</span> 태그는 수강 연구원이며, 클릭 시 상세 정보가 열립니다.
+          </span>
+        </div>
+      </div>
+
+      {/* Course Color Legend Bar (교수님 1-Page 확인용 개설 과목 색상 분류표) */}
+      <div className="bg-white border-2 border-[#1A1A1A] rounded-xs p-2.5 shadow-xs">
+        <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-[#1A1A1A]/15">
+          <Layers className="w-3.5 h-3.5 text-[#1B6CA8]" />
+          <span className="text-[11px] font-black text-[#1A1A1A] tracking-wider">
+            개설 과목 색상 분류표 ({uniqueCourses.length}개 강좌)
+          </span>
+          <span className="text-[9.5px] font-bold text-[#1A1A1A]/50 ml-auto hidden sm:inline">
+            과목에 마우스를 올리면 시간표 위치가 강조됩니다
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {uniqueCourses.map((c) => {
+            const courseColor = getCourseColorTheme(c.courseName);
+            const isHovered = hoveredCourseId === c.courseName;
+
+            return (
+              <div
+                key={c.courseName}
+                onMouseEnter={() => setHoveredCourseId(c.courseName)}
+                onMouseLeave={() => setHoveredCourseId(null)}
+                onClick={() => {
+                  const sampleBlock = allBlocks.find((b) => b.courseName === c.courseName);
+                  if (sampleBlock) setSelectedBlock(sampleBlock);
+                }}
+                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-xs border text-[10px] font-black cursor-pointer transition-all ${
+                  courseColor.blockBg
+                } ${isHovered ? 'ring-2 ring-[#1A1A1A] scale-[1.03] shadow-xs' : 'border-[#1A1A1A]/20 hover:border-[#1A1A1A]'}`}
+                title={`${c.courseName}\n담당: ${c.professor || '미지정'} | 시간: ${c.timeString}\n수강생: ${c.totalStudents}명`}
               >
-                {courseName} ({times.length}개 시간대)
-              </button>
-            ))}
-            {duplicateFilter && (
-              <button
-                onClick={() => setDuplicateFilter(null)}
-                className="text-[9px] font-black text-[#E14C27] hover:underline cursor-pointer"
-              >
-                필터 해제 ✕
-              </button>
-            )}
-          </div>
-        )}
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20"
+                  style={{ backgroundColor: courseColor.primary }}
+                />
+                <span className="text-[#1A1A1A] truncate max-w-[170px]">{c.courseName}</span>
+                <span className="text-[8.5px] font-bold px-1 py-0.2 rounded-2xs bg-white/80 border border-[#1A1A1A]/20 text-[#1A1A1A]/70">
+                  {c.totalStudents}명
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Weekly Timetable Container */}
@@ -202,10 +224,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
             <div className="flex-1 grid grid-cols-5">
               {DAYS.map((day) => {
                 // Get all blocks for this specific day
-                const dayBlocks = allBlocks.filter((b) => {
-                  if (duplicateFilter && b.courseName !== duplicateFilter) return false;
-                  return b.slot.day === day;
-                });
+                const dayBlocks = allBlocks.filter((b) => b.slot.day === day);
 
                 // High-precision lane placement & dynamic expansion
                 const positionedBlocks = layoutDayBlocks(dayBlocks);
@@ -227,7 +246,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
 
                     {/* Render Course Blocks for this Day */}
                     {positionedBlocks.map((block, idx) => {
-                      const colorTheme = CATEGORY_COLORS[block.category] || CATEGORY_COLORS.aerospace;
+                      const courseColor = getCourseColorTheme(block.courseName);
 
                       // Filter students by current active filter / search
                       const visibleStudents = block.students.filter((s) => {
@@ -249,15 +268,24 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
 
                       const isHovered = hoveredCourseId === block.courseName;
 
-                      // Check if this block is narrow (e.g. concurrent classes where width is small)
-                      const isNarrow = block.widthPercent <= 48 || block.totalColumns >= 2;
-                      const isVeryNarrow = block.widthPercent <= 28 || block.totalColumns >= 3;
-                      const isUltraNarrow = block.widthPercent <= 22 || block.totalColumns >= 4;
+                      // Calculate block size tier for adaptive grid column count, typography, and spacing
+                      const isSingleCol = block.widthPercent >= 80 || block.totalColumns === 1;
+                      const isTwoCol = !isSingleCol && (block.widthPercent >= 45 || block.totalColumns === 2);
+                      const isThreeCol = !isSingleCol && !isTwoCol && (block.widthPercent >= 28 || block.totalColumns === 3);
+                      const isUltraNarrow = block.widthPercent < 28 || block.totalColumns >= 4;
+
+                      // Determine how many columns to layout student tags inside this block
+                      // Single block (1 in col): 3 columns of name tags
+                      // Two blocks (2 in col): 2 columns of name tags
+                      // 3 or more blocks: 1 column of name tags
+                      const tagGridColsClass = isSingleCol
+                        ? 'grid-cols-3'
+                        : isTwoCol
+                        ? 'grid-cols-2'
+                        : 'grid-cols-1';
 
                       // Student names string for hover tooltip
-                      const studentNamesText = block.students.map((s) => `${s.name}(${s.degree === 'PhD' ? 'Ph.D' : 'MS.'})`).join(', ');
-
-                      const paddingClass = isUltraNarrow ? 'p-1' : isVeryNarrow ? 'p-1.5' : isNarrow ? 'p-1.5' : 'p-2';
+                      const studentNamesText = block.students.map((s) => `${s.name}(${s.degree === 'PhD' ? 'Ph.D.' : 'M.S.'})`).join(', ');
 
                       return (
                         <div
@@ -266,7 +294,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
                           onMouseEnter={() => setHoveredCourseId(block.courseName)}
                           onMouseLeave={() => setHoveredCourseId(null)}
                           onClick={() => setSelectedBlock(block)}
-                          title={`${block.courseName} (${block.timeString})\n수강생 (${block.students.length}명): ${studentNamesText}\n👉 클릭 시 수강생 전체 목록 확인`}
+                          title={`[${block.courseName}] (${block.timeString})\n담당: ${block.professor || '미지정'}\n수강생 (${block.students.length}명): ${studentNamesText}\n👉 클릭 시 수강생 전체 목록 확인`}
                           style={{
                             top: `${block.topPercent}%`,
                             height: `${block.heightPercent}%`,
@@ -278,114 +306,69 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
                           }`}
                         >
                           <div
-                            className={`h-full w-full rounded-xs ${colorTheme.blockBorder} ${colorTheme.blockBg} ${paddingClass} flex flex-col justify-start shadow-none overflow-hidden transition-all ${
+                            className={`h-full w-full rounded-xs ${courseColor.blockBg} border border-[#1A1A1A]/30 border-l-[4px] ${
+                              isUltraNarrow ? 'p-0.5' : isThreeCol ? 'p-0.5' : isTwoCol ? 'p-1' : 'p-1'
+                            } flex flex-col justify-start shadow-none overflow-hidden transition-all ${
                               isMatchSearch ? 'ring-2 ring-[#E14C27] font-bold' : ''
                             } ${isHovered ? 'shadow-lg border-[#1A1A1A] ring-1 ring-[#1A1A1A]' : ''}`}
+                            style={{ borderLeftColor: courseColor.primary }}
                           >
-                            {/* Unified Block Content: Title -> Divider -> Headcount -> Student Badges */}
+                            {/* Stacked Student Name Tags with Multi-Column Grid */}
                             <div className="h-full w-full flex flex-col justify-start overflow-hidden">
-                              {/* 1. Course Name */}
-                              <div>
-                                <h4
-                                  className={`font-black text-[#1A1A1A] tracking-tighter leading-[1.18] select-none ${
+                              {visibleStudents.length > 0 ? (
+                                <div
+                                  className={`w-full grid ${tagGridColsClass} ${
                                     isUltraNarrow
-                                      ? 'text-[8.5px]'
-                                      : isVeryNarrow
-                                      ? 'text-[9.5px]'
-                                      : isNarrow
-                                      ? 'text-[10.5px]'
-                                      : 'text-xs'
+                                      ? 'gap-0.5'
+                                      : isThreeCol
+                                      ? 'gap-0.5'
+                                      : isTwoCol
+                                      ? 'gap-1'
+                                      : 'gap-1'
                                   }`}
-                                  style={{ wordBreak: isNarrow ? 'break-all' : 'keep-all' }}
                                 >
-                                  {block.courseName}
-                                </h4>
-                              </div>
+                                  {visibleStudents.map((student) => {
+                                    const isPhD = student.degree === 'PhD';
+                                    const isHighlighted =
+                                      searchTerm && student.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-                              {/* 2. Horizontal Divider Line directly below Title */}
-                              <div className="my-1 border-t border-[#1A1A1A]/30 w-full shrink-0" />
-
-                              {/* 3. Headcount directly below Divider */}
-                              <div className="flex items-center justify-between font-black text-[#1A1A1A]/85 tracking-tighter leading-tight shrink-0 mb-1">
-                                {isUltraNarrow ? (
-                                  <div className="flex flex-col text-[7px] leading-none">
-                                    <span>P.{phDCountForBlock(block)}</span>
-                                    <span>M.{masterCountForBlock(block)}</span>
-                                  </div>
-                                ) : isVeryNarrow ? (
-                                  <div className="flex flex-col text-[8px] leading-tight">
-                                    <span>Ph.D. {phDCountForBlock(block)}</span>
-                                    <span>MS. {masterCountForBlock(block)}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[8.5px] whitespace-nowrap">
-                                    Ph.D. {phDCountForBlock(block)}명 / MS. {masterCountForBlock(block)}명
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* 4. Student Badges (Ph.D. or Master 필터 선택 시에만 칩 표시, 블록이 넓고 학생 수가 많으면 2열로 3, 2 배치) */}
-                              {filterDegree !== 'ALL' && visibleStudents.length > 0 && (() => {
-                                const isWideForTwoCols = !isNarrow && visibleStudents.length >= 4;
-                                const rowCount = Math.ceil(visibleStudents.length / 2);
-
-                                return (
-                                  <div
-                                    className={`mt-auto pt-1 w-full overflow-hidden ${
-                                      !isWideForTwoCols ? 'flex flex-col gap-0.5' : ''
-                                    }`}
-                                    style={
-                                      isWideForTwoCols
-                                        ? {
-                                            display: 'grid',
-                                            gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))`,
-                                            gridAutoFlow: 'column',
-                                            gap: '3px',
-                                          }
-                                        : undefined
+                                    // Auto-scale font size for long names (e.g. Jetniphat, Yong Lin) to prevent clipping
+                                    const nameLen = student.name.length;
+                                    let nameSizeClass = '';
+                                    if (isUltraNarrow) {
+                                      nameSizeClass = nameLen >= 8 ? 'text-[5.5px] py-0.5 px-0.5' : nameLen >= 5 ? 'text-[6.5px] py-0.5 px-0.5' : 'text-[7.5px] py-0.5 px-0.5';
+                                    } else if (isThreeCol) {
+                                      nameSizeClass = nameLen >= 8 ? 'text-[6.5px] py-0.5 px-0.5' : nameLen >= 5 ? 'text-[7.5px] py-0.5 px-0.5' : 'text-[8.5px] py-0.5 px-0.5';
+                                    } else if (isTwoCol) {
+                                      nameSizeClass = nameLen >= 8 ? 'text-[7.5px] py-0.5 px-0.8' : nameLen >= 5 ? 'text-[8.5px] py-0.5 px-1' : 'text-[9.5px] py-0.5 px-1';
+                                    } else {
+                                      nameSizeClass = nameLen >= 8 ? 'text-[8.5px] py-1 px-1' : nameLen >= 5 ? 'text-[9.5px] py-1 px-1' : 'text-[10.5px] py-1 px-1.5';
                                     }
-                                  >
-                                    {visibleStudents.map((student) => {
-                                      const isPhD = student.degree === 'PhD';
-                                      const isHighlighted =
-                                        searchTerm && student.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-                                      return (
-                                        <button
-                                          key={student.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onSelectStudent(student.id);
-                                          }}
-                                          className={`w-full flex items-center justify-between px-1.5 py-0.5 rounded-none font-black transition-transform hover:scale-[1.02] cursor-pointer border ${
-                                            isUltraNarrow
-                                              ? 'text-[7px] py-0.2 px-0.5'
-                                              : isVeryNarrow
-                                              ? 'text-[8px] py-0.5 px-1'
-                                              : isNarrow
-                                              ? 'text-[8.5px] py-0.5 px-1'
-                                              : isWideForTwoCols
-                                              ? 'text-[9px] py-0.5 px-1'
-                                              : 'text-[10px] py-0.5 px-1.5'
-                                          } ${
-                                            isPhD
-                                              ? 'bg-[#1A1A1A] text-white border-[#1A1A1A] hover:bg-black'
-                                              : 'bg-[#E14C27] text-white border-[#c93f1d] hover:bg-[#c93f1d]'
-                                          } ${isHighlighted ? 'ring-2 ring-yellow-400' : ''}`}
-                                          title={`${isPhD ? 'Ph.D' : 'MS.'}: ${student.name}${
-                                            student.note ? ` (${student.note})` : ''
-                                          }`}
-                                        >
-                                          <span className="opacity-80 font-black text-[0.8em]">
-                                            {isPhD ? 'Ph.D' : 'MS.'}
-                                          </span>
-                                          <span className="font-bold tracking-tight">{student.name}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                );
-                              })()}
+                                    return (
+                                      <button
+                                        key={student.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onSelectStudent(student.id);
+                                        }}
+                                        className={`w-full flex items-center justify-center rounded-xs font-black tracking-tighter text-center whitespace-nowrap leading-none transition-transform hover:scale-[1.03] cursor-pointer border ${nameSizeClass} ${
+                                          isPhD
+                                            ? 'bg-[#1A1A1A] text-white border-[#1A1A1A] hover:bg-black'
+                                            : 'bg-[#1B6CA8] text-white border-[#145380] hover:bg-[#145380]'
+                                        } ${isHighlighted ? 'ring-2 ring-yellow-400' : ''}`}
+                                        title={`${student.name} (${isPhD ? 'Ph.D.' : 'M.S.'}) - [${block.courseName}]`}
+                                      >
+                                        <span className="whitespace-nowrap">{student.name}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="h-full flex items-center justify-center">
+                                  <span className="text-[7.5px] font-bold text-[#1A1A1A]/40">-</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -403,7 +386,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
       <div className="bg-[#F1F0ED] border-2 border-[#1A1A1A] rounded-xs p-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
-            <Info className="w-3.5 h-3.5 text-[#E14C27] shrink-0" />
+            <Info className="w-3.5 h-3.5 text-[#1B6CA8] shrink-0" />
             <span className="text-xs font-black text-[#1A1A1A]">
               수업 없는 인원 ({researchOnlyStudents.length}명)
             </span>
@@ -419,13 +402,12 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
                   <button
                     key={s.id}
                     onClick={() => onSelectStudent(s.id)}
-                    className={`px-2 py-1 rounded-xs text-[10px] font-black flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 border ${
-                      isPhD ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-[#E14C27] text-white border-[#c93f1d]'
+                    className={`px-2.5 py-1.5 rounded-xs text-[11px] font-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 border ${
+                      isPhD ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-[#1B6CA8] text-white border-[#145380]'
                     }`}
-                    title={`${s.name} (${isPhD ? 'Ph.D' : 'MS.'}) - 수업 없음`}
+                    title={`${s.name} (${isPhD ? 'Ph.D.' : 'M.S.'}) - 수업 없음`}
                   >
-                    <span className="text-[8px] opacity-75 font-extrabold uppercase">{isPhD ? 'Ph.D' : 'MS.'}</span>
-                    <span className="font-bold">{s.name}</span>
+                    <span>{s.name}</span>
                   </button>
                 );
               })
@@ -434,44 +416,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
         </div>
       </div>
 
-      {/* Bottom Info Bar 2: 교과목 분류 범례 (수업 없는 인원 아래로 배치) */}
-      <div className="bg-[#F1F0ED] p-3 border-2 border-[#1A1A1A] rounded-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black text-[#1A1A1A] tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#E14C27]" />
-              교과목 분류 범례
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold">
-            {Object.entries(CATEGORY_COLORS)
-              .filter(([cat]) => cat !== 'research')
-              .map(([key, theme]) => (
-                <div
-                  key={key}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white border border-[#1A1A1A]/30 text-[#1A1A1A] rounded-xs"
-                >
-                  <span className={`w-2.5 h-2.5 rounded-none ${theme.dotColor}`}></span>
-                  {theme.label}
-                </div>
-              ))}
-            
-            <div className="h-3 w-px bg-[#1A1A1A]/30 mx-1 hidden sm:block"></div>
-
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#1A1A1A] text-white text-[10px] font-black rounded-xs border border-[#1A1A1A]">
-              <span className="w-1.5 h-1.5 bg-[#E14C27] rounded-full"></span>
-              Ph.D (박사)
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#E14C27] text-white text-[10px] font-black rounded-xs border border-[#c93f1d]">
-              <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
-              MS. (석사)
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Course Details / Add-Drop Action Modal */}
+      {/* Quick Course Details Modal */}
       {selectedBlock && (
         <div 
           className="fixed inset-0 z-50 bg-[#1A1A1A]/70 backdrop-blur-xs flex items-center justify-center p-4"
@@ -501,7 +446,7 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
             {/* Course Details */}
             <div className="grid grid-cols-2 gap-3 py-3 text-xs border-b border-[#1A1A1A]/20 font-bold text-[#1A1A1A]">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#E14C27] shrink-0" />
+                <Clock className="w-4 h-4 text-[#1B6CA8] shrink-0" />
                 <div>
                   <span className="text-[#1A1A1A]/60 text-[10px] block">강의 시간</span>
                   <span>{selectedBlock.timeString}</span>
@@ -517,18 +462,18 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
             </div>
 
             {/* Enrolled Students list (균일하고 깔끔한 리스트 뷰) */}
-            <div className="py-3">
+            <div className="pt-3">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-black text-[#1A1A1A] flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-[#E14C27]" />
+                  <User className="w-3.5 h-3.5 text-[#1B6CA8]" />
                   수강 학생 전체 목록 ({selectedBlock.students.length}명)
                 </h4>
                 <span className="text-[10px] font-black text-[#1A1A1A]/70">
-                  Ph.D {selectedBlock.students.filter(s => s.degree === 'PhD').length}명 · MS. {selectedBlock.students.filter(s => s.degree === 'Master').length}명
+                  Ph.D. {selectedBlock.students.filter(s => s.degree === 'PhD').length}명 · M.S. {selectedBlock.students.filter(s => s.degree === 'Master').length}명
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto p-2 bg-white rounded-xs border-2 border-[#1A1A1A]">
+              <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto p-2 bg-white rounded-xs border-2 border-[#1A1A1A]">
                 {selectedBlock.students.map((s) => {
                   const isPhD = s.degree === 'PhD';
                   return (
@@ -542,34 +487,19 @@ export const MasterTimetable: React.FC<MasterTimetableProps> = ({
                     >
                       <div className="flex items-center gap-1.5">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-xs font-black border ${
-                          isPhD ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-[#E14C27] text-white border-[#c93f1d]'
+                          isPhD ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-[#1B6CA8] text-white border-[#145380]'
                         }`}>
-                          {isPhD ? 'Ph.D' : 'MS.'}
+                          {isPhD ? 'Ph.D.' : 'M.S.'}
                         </span>
-                        <span className="text-xs font-black text-[#1A1A1A]">{s.name}</span>
+                        <span className="text-xs font-black text-[#1A1A1A] flex items-center gap-1">
+                          {s.name}
+                          {s.name === '이윤일' && <span className="text-[10px]" title="랩장">👑</span>}
+                        </span>
                       </div>
-                      {s.note && (
-                        <span className="text-[9px] text-[#1A1A1A]/50 truncate max-w-[85px]" title={s.note}>
-                          {s.note}
-                        </span>
-                      )}
                     </div>
                   );
                 })}
               </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between gap-3 pt-3 border-t-2 border-[#1A1A1A]">
-              <button
-                onClick={() => {
-                  setSelectedBlock(null);
-                  onEditCourse(selectedBlock.courseCode, selectedBlock.courseName);
-                }}
-                className="w-full py-2.5 px-4 rounded-xs bg-[#1A1A1A] hover:bg-black text-white text-xs font-black tracking-wider shadow-none transition-colors cursor-pointer text-center"
-              >
-                ✏️ 이 과목 수강생 및 시간 정정하기
-              </button>
             </div>
           </div>
         </div>

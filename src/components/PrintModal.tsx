@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
-import { Printer, Download, X, Check, Loader2, Users } from 'lucide-react';
-import { Student } from '../types';
-import { CATEGORY_COLORS } from '../utils/colorUtils';
+import React, { useRef, useState, useEffect } from 'react';
+import { Printer, Download, X, Check, Loader2, Users, Layers, GraduationCap } from 'lucide-react';
+import { FilterDegree, Student } from '../types';
+import { CATEGORY_COLORS, getCourseColorTheme } from '../utils/colorUtils';
 import { buildTimetableBlocks, DAYS, layoutDayBlocks, START_HOUR, TOTAL_HOURS } from '../utils/timeUtils';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -10,32 +10,49 @@ interface PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   students: Student[];
+  initialFilterDegree?: FilterDegree;
 }
 
 export const PrintModal: React.FC<PrintModalProps> = ({
   isOpen,
   onClose,
   students,
+  initialFilterDegree = 'ALL',
 }) => {
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const offscreenContainerRef = useRef<HTMLDivElement>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfExported, setPdfExported] = useState(false);
+  const [printFilterDegree, setPrintFilterDegree] = useState<FilterDegree>(initialFilterDegree);
+
+  // Synchronize when modal is reopened
+  useEffect(() => {
+    if (isOpen) {
+      setPrintFilterDegree(initialFilterDegree);
+    }
+  }, [isOpen, initialFilterDegree]);
 
   if (!isOpen) return null;
 
-  const allBlocks = buildTimetableBlocks(students);
+  const totalPhdCount = students.filter((s) => s.degree === 'PhD').length;
+  const totalMasterCount = students.filter((s) => s.degree === 'Master').length;
+
+  // Filter students based on printFilterDegree
+  const activeStudents = students.filter((s) => {
+    if (printFilterDegree === 'PhD') return s.degree === 'PhD';
+    if (printFilterDegree === 'Master') return s.degree === 'Master';
+    return true;
+  });
+
+  const allBlocks = buildTimetableBlocks(activeStudents);
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
-  const phDCount = students.filter((s) => s.degree === 'PhD').length;
-  const masterCount = students.filter((s) => s.degree === 'Master').length;
-
-  // 수업 없는 인원 (전공 연구 전담 및 수강과목 없는 학생)
-  const researchOnlyStudents = students.filter(
+  // 수업 없는 인원 (선택된 학위 내에서 전공연구 전담 및 수강과목 없는 학생)
+  const researchOnlyStudents = activeStudents.filter(
     (s) => s.courses.every((c) => c.isResearch || !c.timeString || c.timeString === '-')
   );
 
-  // Helper count for block
+  // Helper counts for block
   const phDCountForBlock = (block: any) => block.students.filter((s: any) => s.degree === 'PhD').length;
   const masterCountForBlock = (block: any) => block.students.filter((s: any) => s.degree === 'Master').length;
 
@@ -91,7 +108,13 @@ export const PrintModal: React.FC<PrintModalProps> = ({
 
       pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, renderWidth, renderHeight, undefined, 'FAST');
       const dateStr = new Date().toISOString().slice(0, 10);
-      pdf.save(`SMCL_Coursework_Timetable_${dateStr}.pdf`);
+      const degreeSuffix =
+        printFilterDegree === 'PhD'
+          ? 'PhD'
+          : printFilterDegree === 'Master'
+          ? 'Master'
+          : 'All';
+      pdf.save(`SMCL_Coursework_Timetable_${degreeSuffix}_${dateStr}.pdf`);
 
       setPdfExported(true);
       setTimeout(() => setPdfExported(false), 2500);
@@ -118,23 +141,37 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       {/* Printable Document Header */}
       <div className="flex items-center justify-between border-b-2 border-[#1A1A1A] pb-2 mb-1.5 shrink-0">
         <div>
-          <div className="text-[9.5px] font-black tracking-widest text-[#E14C27]">
+          <div className="text-[9.5px] font-black tracking-widest text-[#2563EB]">
             SMCL • Spacecraft Mission & Control Lab
           </div>
           <h1 className="text-xl font-black tracking-tight text-[#1A1A1A]">
-            대학원생 Coursework 주간 종합 시간표
+            {printFilterDegree === 'PhD'
+              ? 'SMCL 연구원 시간표 (박사과정)'
+              : printFilterDegree === 'Master'
+              ? 'SMCL 연구원 시간표 (석사과정)'
+              : 'SMCL 연구원 시간표 (주간 종합)'}
           </h1>
           <p className="text-[10.5px] text-[#1A1A1A]/70 font-bold tracking-wider">
-            총원 {students.length}명 (Ph.D {phDCount}명 / MS. {masterCount}명)
+            {printFilterDegree === 'PhD'
+              ? `박사과정 총원 ${totalPhdCount}명 (Ph.D. Coursework & Research)`
+              : printFilterDegree === 'Master'
+              ? `석사과정 총원 ${totalMasterCount}명 (M.S. Coursework & Research)`
+              : `총원 ${students.length}명 (Ph.D. ${totalPhdCount}명 / M.S. ${totalMasterCount}명)`}
           </p>
         </div>
         <div className="text-right text-[9px] font-bold text-[#1A1A1A]/60 tracking-wider">
           <div>출력일자: {new Date().toLocaleDateString('ko-KR')}</div>
-          <div className="font-black text-[#1A1A1A] text-[10px]">A4 PORTRAIT MASTER</div>
+          <div className="font-black text-[#1A1A1A] text-[10px]">
+            {printFilterDegree === 'PhD'
+              ? 'A4 PORTRAIT • Ph.D.'
+              : printFilterDegree === 'Master'
+              ? 'A4 PORTRAIT • M.S.'
+              : 'A4 PORTRAIT • MASTER'}
+          </div>
         </div>
       </div>
 
-      {/* Continuous Precision Coordinate Timetable Grid - Stretched Vertically */}
+      {/* Continuous Precision Coordinate Timetable Grid - Exactly matching screen MasterTimetable */}
       <div className="border-2 border-[#1A1A1A] bg-white flex-1 flex flex-col">
         {/* Day Header Row */}
         <div className="flex border-b-2 border-[#1A1A1A] bg-[#1A1A1A] text-white shrink-0">
@@ -150,14 +187,14 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                   className="py-1.5 px-1 text-center border-r last:border-r-0 border-white/20"
                 >
                   <span className="text-[11.5px] font-black">{day}요일</span>
-                  <span className="ml-1 text-[8.5px] opacity-80 font-normal">({count})</span>
+                  <span className="ml-1 text-[8.5px] opacity-80 font-normal">({count}개 과목)</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Grid Body with 9 Hours (09:00 - 18:00) stretched across full vertical space (~900px) */}
+        {/* Grid Body with 9 Hours (09:00 - 18:00) */}
         <div className="relative flex flex-1 bg-white min-h-[890px]">
           {/* Y-Axis Time Gutter */}
           <div className="w-12 shrink-0 border-r-2 border-[#1A1A1A] bg-[#F1F0ED] select-none flex flex-col">
@@ -197,15 +234,27 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                     </div>
                   ))}
 
-                  {/* Positioned Blocks */}
+                  {/* Positioned Blocks (Identical to Main View) */}
                   {positionedBlocks.map((block, idx) => {
-                    const colorTheme = CATEGORY_COLORS[block.category] || CATEGORY_COLORS.aerospace;
-                    const isNarrow = block.widthPercent <= 48 || block.totalColumns >= 2;
-                    const isVeryNarrow = block.widthPercent <= 28 || block.totalColumns >= 3;
-                    const isUltraNarrow = block.widthPercent <= 22 || block.totalColumns >= 4;
+                    const courseColor = getCourseColorTheme(block.courseName);
 
-                    const pCount = phDCountForBlock(block);
-                    const mCount = masterCountForBlock(block);
+                    const isSingleCol = block.widthPercent >= 80 || block.totalColumns === 1;
+                    const isTwoCol = !isSingleCol && (block.widthPercent >= 45 || block.totalColumns === 2);
+                    const isThreeCol = !isSingleCol && !isTwoCol && (block.widthPercent >= 28 || block.totalColumns === 3);
+                    const isUltraNarrow = block.widthPercent < 28 || block.totalColumns >= 4;
+
+                    const tagGridColsClass = isSingleCol
+                      ? 'grid-cols-3'
+                      : isTwoCol
+                      ? 'grid-cols-2'
+                      : 'grid-cols-1';
+
+                    // Filtered students inside this block according to selected print degree
+                    const visibleStudents = block.students.filter((s) => {
+                      if (printFilterDegree === 'PhD') return s.degree === 'PhD';
+                      if (printFilterDegree === 'Master') return s.degree === 'Master';
+                      return true;
+                    });
 
                     return (
                       <div
@@ -219,75 +268,61 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                         className="absolute p-0.5 z-10"
                       >
                         <div
-                          className={`h-full w-full rounded-none ${colorTheme.blockBorder} ${colorTheme.blockBg} p-1.5 flex flex-col justify-between overflow-hidden shadow-2xs`}
+                          className={`h-full w-full rounded-xs ${courseColor.blockBg} border border-[#1A1A1A]/30 border-l-[4px] ${
+                            isUltraNarrow ? 'p-0.5' : isThreeCol ? 'p-0.5' : isTwoCol ? 'p-1' : 'p-1'
+                          } flex flex-col justify-start overflow-hidden shadow-none`}
+                          style={{ borderLeftColor: courseColor.primary }}
                         >
-                          {/* Top: Course Name & Divider & Headcount */}
-                          <div>
-                            <h4
-                              className={`font-black text-[#1A1A1A] tracking-tighter leading-[1.18] ${
-                                isUltraNarrow 
-                                  ? 'text-[8.5px]' 
-                                  : isVeryNarrow 
-                                  ? 'text-[9.5px]' 
-                                  : isNarrow 
-                                  ? 'text-[10.5px]' 
-                                  : 'text-[12px]'
-                              }`}
-                              style={{ wordBreak: isNarrow ? 'break-all' : 'keep-all' }}
-                            >
-                              {block.courseName}
-                            </h4>
+                          {/* Student Name Tags Grid */}
+                          <div className="h-full w-full flex flex-col justify-start overflow-hidden">
+                            {visibleStudents.length > 0 ? (
+                              <div
+                                className={`w-full grid ${tagGridColsClass} ${
+                                  isUltraNarrow
+                                    ? 'gap-0.5'
+                                    : isThreeCol
+                                    ? 'gap-0.5'
+                                    : isTwoCol
+                                    ? 'gap-1'
+                                    : 'gap-1'
+                                }`}
+                              >
+                                {visibleStudents.map((student) => {
+                                  const isPhD = student.degree === 'PhD';
 
-                            {/* Divider line */}
-                            <div className="my-1 border-t border-[#1A1A1A]/30 w-full shrink-0" />
+                                  // Auto-scale font size for long names (e.g. Jetniphat, Yong Lin) to prevent clipping
+                                  const nameLen = student.name.length;
+                                  let nameSizeClass = '';
+                                  if (isUltraNarrow) {
+                                    nameSizeClass = nameLen >= 8 ? 'text-[5.5px] py-0.5 px-0.5' : nameLen >= 5 ? 'text-[6.5px] py-0.5 px-0.5' : 'text-[7.5px] py-0.5 px-0.5';
+                                  } else if (isThreeCol) {
+                                    nameSizeClass = nameLen >= 8 ? 'text-[6.5px] py-0.5 px-0.5' : nameLen >= 5 ? 'text-[7.5px] py-0.5 px-0.5' : 'text-[8.5px] py-0.5 px-0.5';
+                                  } else if (isTwoCol) {
+                                    nameSizeClass = nameLen >= 8 ? 'text-[7.5px] py-0.5 px-0.8' : nameLen >= 5 ? 'text-[8.5px] py-0.5 px-1' : 'text-[9.5px] py-0.5 px-1';
+                                  } else {
+                                    nameSizeClass = nameLen >= 8 ? 'text-[8.5px] py-1 px-1' : nameLen >= 5 ? 'text-[9.5px] py-1 px-1' : 'text-[10.5px] py-1 px-1.5';
+                                  }
 
-                            {/* Headcount */}
-                            <div className="font-black text-[#1A1A1A]/90 tracking-tighter leading-tight shrink-0 mb-1">
-                              {isUltraNarrow ? (
-                                <div className="flex flex-col text-[7px] leading-tight">
-                                  <span>P.{pCount} / M.{mCount}</span>
-                                </div>
-                              ) : isVeryNarrow ? (
-                                <div className="flex flex-col text-[8px] leading-tight">
-                                  <span>Ph.D.{pCount} / MS.{mCount}</span>
-                                </div>
-                              ) : (
-                                <span className="text-[9px]">
-                                  Ph.D. {pCount}명 / MS. {mCount}명
-                                </span>
-                              )}
-                            </div>
+                                  return (
+                                    <div
+                                      key={student.id}
+                                      className={`w-full flex items-center justify-center rounded-xs font-black tracking-tighter text-center whitespace-nowrap leading-none border ${nameSizeClass} ${
+                                        isPhD
+                                          ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
+                                          : 'bg-[#1B6CA8] text-white border-[#145380]'
+                                      }`}
+                                    >
+                                      <span className="whitespace-nowrap">{student.name}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="h-full flex items-center justify-center">
+                                <span className="text-[7.5px] font-bold text-[#1A1A1A]/40">-</span>
+                              </div>
+                            )}
                           </div>
-
-                          {/* Bottom: Student Badges (Stacked cleanly with increased height) */}
-                          {block.students.length > 0 && (
-                            <div className="flex flex-col gap-0.5 mt-auto pt-1 w-full overflow-hidden">
-                              {block.students.map((s) => {
-                                const isPhD = s.degree === 'PhD';
-                                return (
-                                  <div
-                                    key={s.id}
-                                    className={`w-full flex items-center justify-between rounded-none font-black border leading-tight shrink-0 ${
-                                      isUltraNarrow
-                                        ? 'px-0.5 py-0.2 text-[7px]'
-                                        : isVeryNarrow
-                                        ? 'px-1 py-0.5 text-[8px]'
-                                        : isNarrow
-                                        ? 'px-1 py-0.5 text-[8.5px]'
-                                        : 'px-1.5 py-0.5 text-[9.5px]'
-                                    } ${
-                                      isPhD
-                                        ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
-                                        : 'bg-[#E14C27] text-white border-[#c93f1d]'
-                                    }`}
-                                  >
-                                    <span className="opacity-80 text-[0.85em]">{isPhD ? 'Ph.D' : 'MS.'}</span>
-                                    <span className="font-bold tracking-tight">{s.name}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -299,39 +334,42 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         </div>
       </div>
 
-      {/* Printable Footer: 수업 없는 인원만 도시 */}
+      {/* Printable Footer: 수업 없는 인원 (이름만 깔끔하게 표기) */}
       <div className="mt-2 pt-1.5 border-t-2 border-[#1A1A1A] shrink-0">
         <div className="flex flex-row items-center justify-between gap-2 bg-[#F1F0ED] p-2 border border-[#1A1A1A]">
           <div className="flex items-center gap-1 shrink-0">
-            <Users className="w-3.5 h-3.5 text-[#E14C27]" />
+            <Users className="w-3.5 h-3.5 text-[#1B6CA8]" />
             <span className="text-[10px] font-black text-[#1A1A1A]">
               수업 없는 인원 ({researchOnlyStudents.length}명):
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-1">
-            {researchOnlyStudents.map((s) => {
-              const isPhD = s.degree === 'PhD';
-              return (
-                <span
-                  key={s.id}
-                  className={`px-1.5 py-0.5 rounded-none text-[9px] font-black border ${
-                    isPhD
-                      ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
-                      : 'bg-[#E14C27] text-white border-[#c93f1d]'
-                  }`}
-                >
-                  <span className="text-[7.5px] opacity-80 mr-0.5">{isPhD ? 'Ph.D' : 'MS.'}</span>
-                  {s.name}
-                </span>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {researchOnlyStudents.length === 0 ? (
+              <span className="text-[9px] font-bold text-[#1A1A1A]/60">전원 Coursework 수강 중</span>
+            ) : (
+              researchOnlyStudents.map((s) => {
+                const isPhD = s.degree === 'PhD';
+                return (
+                  <span
+                    key={s.id}
+                    className={`px-2 py-1 rounded-xs text-[10px] font-black border ${
+                      isPhD
+                        ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
+                        : 'bg-[#1B6CA8] text-white border-[#145380]'
+                    }`}
+                  >
+                    {s.name}
+                  </span>
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* Sub-footer Note */}
         <div className="mt-1 flex items-center justify-between text-[8.5px] font-bold tracking-wider text-[#1A1A1A]/70">
           <span>SMCL (Spacecraft Mission & Control Lab)</span>
-          <span>* Ph.D (박사: 검정색) / MS. (석사: 주황색)</span>
+          <span>* Ph.D. (박사: 검정색) / M.S. (석사: 파란색) • 좌측 컬러 바로 과목 구분</span>
         </div>
       </div>
     </div>
@@ -348,16 +386,53 @@ export const PrintModal: React.FC<PrintModalProps> = ({
       </div>
 
       <div 
-        className="bg-white border-2 border-[#1A1A1A] w-full max-w-[880px] max-h-[96vh] flex flex-col rounded-xs shadow-2xl overflow-hidden"
+        className="bg-white border-2 border-[#1A1A1A] w-full max-w-[900px] max-h-[96vh] flex flex-col rounded-xs shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Control Bar */}
         <div className="bg-[#F1F0ED] border-b-2 border-[#1A1A1A] p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
-            <Printer className="w-4 h-4 text-[#E14C27]" />
+            <Printer className="w-4 h-4 text-[#1B6CA8]" />
             <h2 className="text-sm font-black text-[#1A1A1A] tracking-wider">
               시간표 인쇄 및 A4 세로 PDF 내보내기
             </h2>
+          </div>
+
+          {/* Segmented Filter Switch: 종합(ALL) / 박사(PhD) / 석사(Master) */}
+          <div className="flex items-center bg-white border border-[#1A1A1A] p-0.5 rounded-xs shadow-2xs">
+            <button
+              onClick={() => setPrintFilterDegree('ALL')}
+              className={`px-2.5 py-1 text-xs font-black transition-all cursor-pointer rounded-xs flex items-center gap-1 ${
+                printFilterDegree === 'ALL'
+                  ? 'bg-[#1A1A1A] text-white shadow-xs'
+                  : 'text-[#1A1A1A]/70 hover:text-[#1A1A1A] hover:bg-[#F1F0ED]'
+              }`}
+            >
+              <Layers className="w-3 h-3" />
+              종합 (전체 {students.length}명)
+            </button>
+            <button
+              onClick={() => setPrintFilterDegree('PhD')}
+              className={`px-2.5 py-1 text-xs font-black transition-all cursor-pointer rounded-xs flex items-center gap-1 ${
+                printFilterDegree === 'PhD'
+                  ? 'bg-[#1A1A1A] text-white shadow-xs'
+                  : 'text-[#1A1A1A]/70 hover:text-[#1A1A1A] hover:bg-[#F1F0ED]'
+              }`}
+            >
+              <GraduationCap className="w-3 h-3 text-[#1A1A1A]" />
+              박사 (Ph.D. {totalPhdCount}명)
+            </button>
+            <button
+              onClick={() => setPrintFilterDegree('Master')}
+              className={`px-2.5 py-1 text-xs font-black transition-all cursor-pointer rounded-xs flex items-center gap-1 ${
+                printFilterDegree === 'Master'
+                  ? 'bg-[#1B6CA8] text-white shadow-xs'
+                  : 'text-[#1A1A1A]/70 hover:text-[#1A1A1A] hover:bg-[#F1F0ED]'
+              }`}
+            >
+              <GraduationCap className="w-3 h-3" />
+              석사 (M.S. {totalMasterCount}명)
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -365,7 +440,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             <button
               onClick={handleExportPdf}
               disabled={isExportingPdf}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-white bg-[#E14C27] hover:bg-[#c93f1d] border border-[#c93f1d] rounded-xs transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-white bg-[#1B6CA8] hover:bg-[#145380] border border-[#145380] rounded-xs transition-all cursor-pointer disabled:opacity-50"
               title="A4 세로 규격 PDF 파일 다운로드"
             >
               {isExportingPdf ? (
@@ -381,7 +456,11 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               ) : (
                 <>
                   <Download className="w-3.5 h-3.5" />
-                  A4 세로 PDF 다운로드
+                  {printFilterDegree === 'PhD'
+                    ? '박사 PDF 다운로드'
+                    : printFilterDegree === 'Master'
+                    ? '석사 PDF 다운로드'
+                    : '종합 PDF 다운로드'}
                 </>
               )}
             </button>
@@ -393,7 +472,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
               title="브라우저 인쇄 다이얼로그 호출 (A4 세로 권장)"
             >
               <Printer className="w-3.5 h-3.5" />
-              인쇄 창 열기
+              인쇄
             </button>
 
             {/* Close Button */}

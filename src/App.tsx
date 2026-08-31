@@ -11,11 +11,10 @@ import { MasterTimetable } from './components/MasterTimetable';
 import { StudentScheduleView } from './components/StudentScheduleView';
 import { LabMatrixView } from './components/LabMatrixView';
 import { AddDropModal } from './components/AddDropModal';
-import { CsvModal } from './components/CsvModal';
 import { PrintView } from './components/PrintView';
 import { PrintModal } from './components/PrintModal';
 
-const STORAGE_KEY = 'smcl_coursework_timetable_v1';
+const STORAGE_KEY = 'smcl_coursework_timetable_v4';
 
 export default function App() {
   const [students, setStudents] = useState<Student[]>(() => {
@@ -37,7 +36,6 @@ export default function App() {
 
   // Modals state
   const [isAddDropModalOpen, setIsAddDropModalOpen] = useState(false);
-  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [initialStudentForModal, setInitialStudentForModal] = useState<string | null>(null);
   const [editingCourseData, setEditingCourseData] = useState<{ courseCode: string; courseName: string } | null>(null);
@@ -95,7 +93,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F8F6] text-[#1A1A1A] flex flex-col font-sans selection:bg-[#E14C27] selection:text-white">
+    <div className="min-h-screen bg-[#F9F8F6] text-[#1A1A1A] flex flex-col font-sans selection:bg-[#2563EB] selection:text-white">
       {/* Screen Header & Top Controls */}
       <Header
         students={students}
@@ -109,7 +107,6 @@ export default function App() {
           setInitialStudentForModal(null);
           setIsAddDropModalOpen(true);
         }}
-        onOpenCsvModal={() => setIsCsvModalOpen(true)}
         onResetData={handleResetData}
         onPrint={handlePrint}
       />
@@ -150,7 +147,7 @@ export default function App() {
       </main>
 
       {/* 1-Page Landscape Print View (visible only during window.print()) */}
-      <PrintView students={students} />
+      <PrintView students={students} filterDegree={filterDegree} />
 
       {/* Modals */}
       <AddDropModal
@@ -166,21 +163,11 @@ export default function App() {
         initialCourseData={editingCourseData}
       />
 
-      <CsvModal
-        isOpen={isCsvModalOpen}
-        onClose={() => setIsCsvModalOpen(false)}
-        students={students}
-        onImportStudents={handleUpdateStudents}
-        onOpenPrintModal={() => {
-          setIsCsvModalOpen(false);
-          setIsPrintModalOpen(true);
-        }}
-      />
-
       <PrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         students={students}
+        initialFilterDegree={filterDegree}
       />
 
       {/* Editorial Footer */}
@@ -188,15 +175,14 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-black tracking-wider">
           <div className="flex items-center gap-3">
             <span className="bg-[#1A1A1A] text-white px-2 py-0.5 rounded-xs">SMCL</span>
-            <span>Spacecraft Mission & Control Lab • 24인 연구원 시간표 관리 시스템</span>
+            <span>Spacecraft Mission & Control Lab • 연구원 시간표 관리 시스템</span>
           </div>
           <div className="flex items-center gap-4 text-[10px]">
-            <span className="opacity-60">상태: <strong className="text-[#E14C27]">실시간 동기화 활성</strong></span>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#E14C27]"></span>AI/기계학습</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#34495E]"></span>항공우주/위성</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#2ECC71]"></span>기계/시스템</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#E67E22]"></span>인문사회/기타</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#34495E]"></span>항공우주</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#2ECC71]"></span>기계공학</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#E67E22]"></span>인문사회/스포츠</span>
             </div>
           </div>
         </div>

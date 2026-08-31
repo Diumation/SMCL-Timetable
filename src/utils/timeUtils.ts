@@ -38,31 +38,29 @@ export function getCategoryFromCourse(courseCode: string, courseName: string, de
 }
 
 /**
- * Parses time string like "월/수 10:30 - 12:00", "월 13:00 - 15:00", "화/목 14:30 - 16:00"
+ * Parses time string like "월/수 10:30 - 12:00", "화/목 09:00~10:30", "화/목 9:00 - 10:30", "수/금 14:30 - 16:00", "화 15:00 - 17:00"
  */
 export function parseTimeString(timeStr: string): ParsedTimeSlot[] {
   if (!timeStr || timeStr === '-' || timeStr.trim() === '') {
     return [];
   }
 
+  const cleanStr = timeStr.replace(/~/g, '-').trim();
   const results: ParsedTimeSlot[] = [];
-  // Example patterns:
-  // "월/수 10:30 - 12:00"
-  // "화 15:00 - 17:00"
-  // "화/목 14:30 - 16:00"
-  // "화 14:00 - 18:00"
-  const parts = timeStr.trim().split(/\s+/);
-  if (parts.length < 4 && !timeStr.includes('-')) return [];
 
-  const dayPart = parts[0]; // "월/수" or "화" or "월"
-  const timeRangePart = parts.slice(1).join(' '); // "10:30 - 12:00"
+  // Match day part (e.g., "월/수", "화/목", "수/금", "화", "금", "월") and time range
+  const dayMatch = cleanStr.match(/^([월화수목금](?:\/[월화수목금])*)\s*(.*)$/);
+  if (!dayMatch) return [];
+
+  const dayPart = dayMatch[1]; // e.g. "월/수" or "수/금" or "화"
+  const timeRangePart = dayMatch[2]; // e.g. "14:30 - 16:00" or "09:00 - 10:30" or "9:00 - 10:30"
 
   const timeMatch = timeRangePart.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
   if (!timeMatch) return [];
 
-  const startHour = parseInt(timeMatch[1], 10);
+  let startHour = parseInt(timeMatch[1], 10);
   const startMinute = parseInt(timeMatch[2], 10);
-  const endHour = parseInt(timeMatch[3], 10);
+  let endHour = parseInt(timeMatch[3], 10);
   const endMinute = parseInt(timeMatch[4], 10);
 
   const totalMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
@@ -124,7 +122,6 @@ export function buildTimetableBlocks(students: Student[]): TimetableBlockItem[] 
             id: student.id,
             name: student.name,
             degree: student.degree,
-            note: course.note,
           });
         }
       }

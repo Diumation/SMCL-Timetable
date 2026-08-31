@@ -12,8 +12,8 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { FilterDegree, Student, StudentCourse } from '../types';
-import { CATEGORY_COLORS, getDegreeBadgeClass } from '../utils/colorUtils';
-import { getCategoryFromCourse, parseTimeString, calculateSlotPosition, DAYS, START_HOUR, TOTAL_HOURS } from '../utils/timeUtils';
+import { getCourseColorTheme, getDegreeBadgeClass } from '../utils/colorUtils';
+import { parseTimeString, calculateSlotPosition, DAYS, START_HOUR, TOTAL_HOURS } from '../utils/timeUtils';
 
 interface StudentScheduleViewProps {
   students: Student[];
@@ -61,15 +61,18 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
     ? activeStudent.courses.reduce((acc, c) => acc + (typeof c.credits === 'number' ? c.credits : parseFloat(c.credits) || 0), 0)
     : 0;
 
+  const isResearchOrSeminar = (c: StudentCourse) => 
+    c.isResearch || c.isSeminar || c.courseName.includes('논문연구') || c.courseName.includes('세미나');
+
   const courseworkCredits = activeStudent
     ? activeStudent.courses
-        .filter((c) => !c.isResearch && c.timeString && c.timeString !== '-')
+        .filter((c) => !isResearchOrSeminar(c) && c.timeString && c.timeString !== '-')
         .reduce((acc, c) => acc + (typeof c.credits === 'number' ? c.credits : parseFloat(c.credits) || 0), 0)
     : 0;
 
   const researchCredits = activeStudent
     ? activeStudent.courses
-        .filter((c) => c.isResearch || c.courseName.includes('논문연구'))
+        .filter((c) => isResearchOrSeminar(c))
         .reduce((acc, c) => acc + (typeof c.credits === 'number' ? c.credits : parseFloat(c.credits) || 0), 0)
     : 0;
 
@@ -85,7 +88,7 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
       <div className="lg:col-span-4 bg-[#F1F0ED] rounded-xs border-2 border-[#1A1A1A] p-4 flex flex-col h-[820px]">
         <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b-2 border-[#1A1A1A]">
           <div className="flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-[#E14C27]" />
+            <GraduationCap className="w-4 h-4 text-[#1B6CA8]" />
             <h3 className="text-xs font-black tracking-wider text-[#1A1A1A]">
               연구원 목록 ({filteredStudents.length}/{students.length}명)
             </h3>
@@ -122,14 +125,19 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                     #{s.orderNumber}
                   </span>
                   <span className={`text-[9px] px-1.5 py-0.2 rounded-xs font-black ${
-                    isSelected ? 'bg-white text-[#1A1A1A]' : isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#E14C27] text-white'
+                    isSelected ? 'bg-white text-[#1A1A1A]' : isPhD ? 'bg-[#1A1A1A] text-white' : 'bg-[#1B6CA8] text-white'
                   }`}>
-                    {isPhD ? 'Ph.D' : 'MS.'}
+                    {isPhD ? 'Ph.D.' : 'M.S.'}
                   </span>
                   <div>
-                    <span className={`text-xs font-black ${isSelected ? 'text-white' : 'text-[#1A1A1A]'}`}>
-                      {s.name}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs font-black ${isSelected ? 'text-white' : 'text-[#1A1A1A]'}`}>
+                        {s.name}
+                      </span>
+                      {(s.name === '이윤일' || s.orderNumber === 2) && (
+                        <span className="text-xs inline-block" title="연구실 랩장 (Lab Leader)">👑</span>
+                      )}
+                    </div>
                     <div className={`text-[9px] font-bold ${isSelected ? 'text-white/70' : 'text-[#1A1A1A]/60'}`}>
                       {courseCount > 0 ? `강의 ${courseCount}개` : '연구학점 전담'}
                     </div>
@@ -137,7 +145,7 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <span className={`text-xs font-black ${isSelected ? 'text-[#E14C27]' : 'text-[#1A1A1A]'}`}>
+                  <span className={`text-xs font-black ${isSelected ? 'text-[#1B6CA8]' : 'text-[#1A1A1A]'}`}>
                     {studentCredits}학점
                   </span>
                   <div className={`text-[8px] font-bold ${isSelected ? 'text-white/60' : 'text-[#1A1A1A]/50'}`}>
@@ -166,17 +174,20 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                       className={`text-[10px] px-2 py-0.5 rounded-xs font-black tracking-wider ${
                         activeStudent.degree === 'PhD'
                           ? 'bg-[#1A1A1A] text-white'
-                          : 'bg-[#E14C27] text-white'
+                          : 'bg-[#1B6CA8] text-white'
                       }`}
                     >
-                      {activeStudent.degree === 'PhD' ? 'Ph.D (박사과정)' : 'MS. (석사과정)'}
+                      {activeStudent.degree === 'PhD' ? 'Ph.D. (박사과정)' : 'M.S. (석사과정)'}
                     </span>
                     <span className="text-xs font-bold text-[#1A1A1A]/50 font-mono">
                       No. {activeStudent.orderNumber}
                     </span>
                   </div>
-                  <h2 className="text-2xl font-black text-[#1A1A1A] mt-0.5 tracking-tight">
-                    {activeStudent.name} 연구원
+                  <h2 className="text-2xl font-black text-[#1A1A1A] mt-0.5 tracking-tight flex items-center gap-1.5">
+                    <span>{activeStudent.name} 연구원</span>
+                    {(activeStudent.name === '이윤일' || activeStudent.orderNumber === 2) && (
+                      <span className="text-lg inline-flex items-center" title="연구실 랩장 (Lab Leader)">👑</span>
+                    )}
                   </h2>
                 </div>
               </div>
@@ -189,8 +200,8 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                 </div>
                 <div className="h-6 w-px bg-[#1A1A1A]/20"></div>
                 <div className="text-center px-2">
-                  <div className="text-[9px] font-black tracking-wider text-[#E14C27]">강의학점</div>
-                  <div className="text-lg font-black text-[#E14C27]">{courseworkCredits}학점</div>
+                  <div className="text-[9px] font-black tracking-wider text-[#1B6CA8]">강의학점</div>
+                  <div className="text-lg font-black text-[#1B6CA8]">{courseworkCredits}학점</div>
                 </div>
                 <div className="h-6 w-px bg-[#1A1A1A]/20"></div>
                 <div className="text-center px-2">
@@ -202,10 +213,10 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
 
             {/* Conflict Warning if any */}
             {conflicts.length > 0 && (
-              <div className="bg-[#E14C27]/10 border-2 border-[#E14C27] rounded-xs p-3.5 flex items-start gap-3 text-[#1A1A1A] text-xs">
-                <AlertTriangle className="w-5 h-5 text-[#E14C27] shrink-0 mt-0.5" />
+              <div className="bg-red-50 border-2 border-red-500 rounded-xs p-3.5 flex items-start gap-3 text-[#1A1A1A] text-xs">
+                <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-black text-[#E14C27] tracking-wider">⚠️ 강의 시간 중복 경고:</span>
+                  <span className="font-black text-red-600 tracking-wider">⚠️ 강의 시간 중복 경고:</span>
                   <ul className="list-disc list-inside mt-1 space-y-0.5 font-bold">
                     {conflicts.map((c, idx) => (
                       <li key={idx}>
@@ -220,7 +231,7 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
             {/* Individual Student Weekly Timetable */}
             <div className="bg-white rounded-xs border-2 border-[#1A1A1A] p-4 shadow-none">
               <h4 className="text-xs font-black tracking-wider text-[#1A1A1A] mb-3 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-[#E14C27]" />
+                <Clock className="w-4 h-4 text-[#1B6CA8]" />
                 {activeStudent.name} 연구원 주간 시간표
               </h4>
 
@@ -261,8 +272,7 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                         .filter((c) => !c.isResearch && c.timeString && c.timeString !== '-')
                         .map((course) => {
                           const slots = parseTimeString(course.timeString).filter((s) => s.day === day);
-                          const cat = getCategoryFromCourse(course.courseCode, course.courseName, course.department);
-                          const theme = CATEGORY_COLORS[cat] || CATEGORY_COLORS.aerospace;
+                          const theme = getCourseColorTheme(course.courseName);
 
                           return slots.map((slot, idx) => {
                             const { topPercent, heightPercent } = calculateSlotPosition(slot);
@@ -272,8 +282,9 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                                 style={{
                                   top: `calc(32px + (100% - 32px) * ${topPercent / 100})`,
                                   height: `calc((100% - 32px) * ${heightPercent / 100})`,
+                                  borderLeftColor: theme.primary,
                                 }}
-                                className={`absolute left-0.5 right-0.5 p-1.5 rounded-xs ${theme.blockBorder} ${theme.blockBg} shadow-none overflow-hidden z-10 flex flex-col justify-between`}
+                                className={`absolute left-0.5 right-0.5 p-1.5 rounded-xs border-l-4 border-t border-r border-b border-[#1A1A1A]/20 ${theme.blockBg} shadow-none overflow-hidden z-10 flex flex-col justify-between`}
                               >
                                 <div>
                                   <span className={`text-[8px] font-black px-1 py-0.2 rounded-xs border border-[#1A1A1A]/20 ${theme.badgeBg} ${theme.badgeText}`}>
@@ -301,7 +312,7 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
             <div className="bg-white rounded-xs border-2 border-[#1A1A1A] p-4 shadow-none">
               <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-[#1A1A1A]">
                 <h4 className="text-xs font-black tracking-wider text-[#1A1A1A] flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-[#E14C27]" />
+                  <BookOpen className="w-4 h-4 text-[#1B6CA8]" />
                   신청 교과목 목록 ({activeStudent.courses.length}개)
                 </h4>
 
@@ -310,7 +321,7 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                   onClick={() => onAddCourseToStudent(activeStudent.id)}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xs bg-[#1A1A1A] hover:bg-black text-white text-xs font-black tracking-wider transition-colors cursor-pointer"
                 >
-                  <PlusCircle className="w-3.5 h-3.5 text-[#E14C27]" />
+                  <PlusCircle className="w-3.5 h-3.5 text-[#1B6CA8]" />
                   과목 추가 / 정정
                 </button>
               </div>
@@ -325,14 +336,12 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                       <th className="py-2 px-3">담당교수</th>
                       <th className="py-2 px-3 text-center">학점</th>
                       <th className="py-2 px-3">강의 시간</th>
-                      <th className="py-2 px-3">비고</th>
                       <th className="py-2 px-3 text-right">삭제</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1A1A1A]/10 border border-[#1A1A1A]/20">
                     {activeStudent.courses.map((c) => {
-                      const cat = getCategoryFromCourse(c.courseCode, c.courseName, c.department);
-                      const theme = CATEGORY_COLORS[cat] || CATEGORY_COLORS.aerospace;
+                      const theme = getCourseColorTheme(c.courseName);
 
                       return (
                         <tr key={c.id} className="hover:bg-[#F1F0ED] transition-colors font-bold">
@@ -340,7 +349,10 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                             {c.courseCode}
                           </td>
                           <td className="py-2 px-3 font-black text-[#1A1A1A]">
-                            <span className={`inline-block w-2 h-2 mr-1.5 ${theme.dotColor}`}></span>
+                            <span 
+                              className="inline-block w-2 h-2 mr-1.5 rounded-full" 
+                              style={{ backgroundColor: theme.primary }}
+                            />
                             {c.courseName}
                           </td>
                           <td className="py-2 px-3 text-[#1A1A1A]/70">{c.department}</td>
@@ -349,13 +361,10 @@ export const StudentScheduleView: React.FC<StudentScheduleViewProps> = ({
                           <td className="py-2 px-3 text-[#1A1A1A]">
                             {c.timeString || '-'}
                           </td>
-                          <td className="py-2 px-3 text-[#1A1A1A]/50 italic max-w-xs truncate" title={c.note}>
-                            {c.note || '-'}
-                          </td>
                           <td className="py-2 px-3 text-right">
                             <button
                               onClick={() => onDeleteCourseFromStudent(activeStudent.id, c.id)}
-                              className="p-1 text-[#1A1A1A]/40 hover:text-[#E14C27] hover:bg-[#E14C27]/10 rounded-xs transition-colors cursor-pointer"
+                              className="p-1 text-[#1A1A1A]/40 hover:text-red-600 hover:bg-red-50 rounded-xs transition-colors cursor-pointer"
                               title="과목 삭제"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

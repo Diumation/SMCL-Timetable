@@ -1,20 +1,29 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# 🛰️ SMCL 연구실 대학원생 Coursework 주간 종합 시간표
 
-# Run and deploy your AI Studio app
+> **Spacecraft Mission & Control Lab (우주비행체 임무 및 제어 연구실)**  
+> 24인 연구원(박사 13명, 석사 11명)의 주간 수강신청 교과목 시각화 및 일정 조회 대시보드
 
-This contains everything you need to run your app locally.
+본 저장소는 연구실 내부 연구원들의 주간 강의 시간표를 1페이지 그리드로 한눈에 확인하고, 랩 세미나/전체 미팅 가능 시간대를 파악하기 위해 제작된 웹 애플리케이션입니다.
 
-View your app in AI Studio: https://ai.studio/apps/fbd4d01d-a639-492c-a541-14a9f67108cd
+---
 
-## Run Locally
+## 📌 주요 기능
 
-**Prerequisites:**  Node.js
+1. **주간 종합 시간표 (Master Timetable)**
+   - 월~금 (09:00 ~ 18:00) 랩원들의 수강 교과목 배치 및 정밀 레이아웃 렌더링
+   - 학위 과정별(Ph.D / MS.) 필터링 및 이름·교과목 실시간 검색
+   - 교과목 클릭 시 수강생 전체 명단 및 강의 정보 팝업 제공
 
+2. **연구원별 개별 시간표 (Student View)**
+   - 24인 개별 연구원 선택 및 개인별 주간 시간표 확인
+   - 강의학점 및 연구학점 이수 현황 요약
+   - 수강 과목 간 시간 중복(Conflict) 자동 감지 및 경고 표시
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+3. **연구실 재실 / 세미나 추천 시간대 (Lab Matrix)**
+   - 요일 및 시간대별 수업 인원 현황 히트맵
+   - 전체 인원 중 랩실 재실 인원이 가장 많은 **최적의 랩 세미나/미팅 시간대 자동 추천**
+
+4. **A4 세로 인쇄 및 PDF 내보내기**
+   - 연구실 벽면 부착 및 보관용 A4 세로(Portrait) 규격 원클릭 인쇄/PDF 저장 지원
+
+---
